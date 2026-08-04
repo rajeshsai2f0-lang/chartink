@@ -1,0 +1,42 @@
+name: Daily Chartink Screener
+
+on:
+  schedule:
+    # 5:00 PM IST = 11:30 UTC. Runs Mon–Fri only (GitHub Actions cron is always UTC).
+    - cron: "30 11 * * 1-5"
+  workflow_dispatch: {}   # lets you manually trigger a run from the Actions tab for testing
+
+jobs:
+  run-screener:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Chartink screener script
+        run: python chartink_screener_automation.py
+
+      - name: Email the results
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+        run: python send_email.py
+
+      - name: Upload Excel as workflow artifact (backup)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: chartink-screener-results
+          path: Chartink_Screener_*.xlsx
+          retention-days: 14
