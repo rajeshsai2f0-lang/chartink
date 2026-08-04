@@ -1,0 +1,47 @@
+name: Daily Finviz Screener
+
+on:
+  schedule:
+    # 6:00 AM IST = 00:30 UTC. Runs every day (change to "30 0 * * 1-5" for weekdays only).
+    - cron: "30 0 * * *"
+  workflow_dispatch: {}   # lets you manually trigger a run from the Actions tab for testing
+
+jobs:
+  run-screener:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run Finviz screener script
+        env:
+          FINVIZ_EMAIL: ${{ secrets.FINVIZ_EMAIL }}
+          FINVIZ_PASSWORD: ${{ secrets.FINVIZ_PASSWORD }}
+        run: python finviz_screener.py
+
+      - name: Email the results
+        env:
+          GMAIL_ADDRESS: ${{ secrets.GMAIL_ADDRESS }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          TO_EMAIL: ${{ secrets.TO_EMAIL }}
+          FILE_PREFIX: "Finviz_Screener"
+          REPORT_NAME: "Finviz Screener"
+        run: python send_email.py
+
+      - name: Upload Excel as workflow artifact (backup)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: finviz-screener-results
+          path: Finviz_Screener_*.xlsx
+          retention-days: 14
